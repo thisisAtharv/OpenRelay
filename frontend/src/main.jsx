@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const API = import.meta.env.VITE_API_URL;
 const NAV = [
   ['overview', 'Overview', '⌂'],
+  ['receiver', 'Receiver', '◈'],
   ['projects', 'Projects', '▦'],
   ['keys', 'API keys', '⌁'],
   ['logs', 'Logs', '≡'],
@@ -139,7 +140,7 @@ function App() {
     <main className="main">
       <header className="topbar">
         <div className="mobileBrand"><div className="brandMark">O</div><b>OpenRelay</b></div>
-        <div><div className="eyebrow">Developer console</div><h1>{NAV.find(x=>x[0]===page)?.[1]}</h1><p>{page==='overview'?'Send, inspect and debug notifications from one lightweight console.':page==='projects'?'Organize notification traffic by application.':page==='keys'?'Manage the credentials your applications use.':page==='logs'?'Monitor delivery activity and troubleshoot failures.':page==='docs'?'Copy the integration you need and ship.':'Control appearance and instance details.'}</p></div>
+        <div><div className="eyebrow">Developer console</div><h1>{NAV.find(x=>x[0]===page)?.[1]}</h1><p>{page==='overview'?'Send, inspect and debug notifications from one lightweight console.':page==='receiver'?'Real-time notification listener via Server-Sent Events (SSE).':page==='projects'?'Organize notification traffic by application.':page==='keys'?'Manage the credentials your applications use.':page==='logs'?'Monitor delivery activity and troubleshoot failures.':page==='docs'?'Copy the integration you need and ship.':'Control appearance and instance details.'}</p></div>
         <div className="topActions"><span className="healthBadge"><i className={health?'online':'offline'}></i>{health?'All systems operational':'API unavailable'}</span></div>
       </header>
 
@@ -159,6 +160,8 @@ function App() {
           <LogTable logs={logs.slice(0,6)} onView={()=>setPage('logs')}/>
         </>}
       </>}
+
+      {page==='receiver' && <ReceiverPage project={project} apiKey={apiKey} request={request} auth={auth} notify={notify} setPage={setPage} copy={copy} />}
 
       {page==='projects' && <section className="pageSection"><div className="pageIntro"><div><span className="sectionLabel">WORKSPACE</span><h2>Your projects</h2><p>Each project has its own API keys and notification history.</p></div><form className="createInline" onSubmit={createProject}><input value={newProject} onChange={e=>setNewProject(e.target.value)} placeholder="Project name"/><button className="primary" disabled={busy}>Create project</button></form></div><div className="projectGrid">{projects.map(p=><article className={`projectCard ${project?.id===p.id?'selected':''}`} key={p.id}><button className="projectMain" onClick={()=>{setProject(p);setPage('overview')}}><div className="projectAvatar">{p.name.slice(0,1).toUpperCase()}</div><div><h3>{p.name}</h3><span>{p.notification_count||0} notifications</span><small>{new Date(p.created_at).toLocaleDateString()}</small></div></button><div className="cardActions"><button onClick={()=>{setProject(p);setPage('overview')}}>Open</button><button className="dangerText" onClick={()=>setModal({type:'delete-project',project:p})}>Delete</button></div></article>)}</div>{!projects.length&&<EmptyState icon="▦" title="No projects yet" text="Create a project to get an API key and start sending notifications."/>}</section>}
 
@@ -186,5 +189,347 @@ function Panel({title,subtitle,children,danger=false}){return <section className
 function Code({text,onCopy}){return <div className="codeWrap"><pre><code>{text}</code></pre>{onCopy&&<button className="copyButton" onClick={onCopy}>Copy</button>}</div>}
 function EmptyState({icon,title,text,action,onClick}){return <div className="emptyState"><div className="emptyIcon">{icon}</div><h3>{title}</h3><p>{text}</p>{action&&<button className="primary" onClick={onClick}>{action}</button>}</div>}
 function LogTable({logs,onView,full=false}){return <section className="panel logPanel"><div className="panelHead"><div><h3>{full?'Activity':'Recent notifications'}</h3><p>{full?'Latest delivery records for the selected project.':'The latest notification activity.'}</p></div>{onView&&logs.length>0&&<button className="textButton" onClick={onView}>View all →</button>}</div>{!logs.length?<div className="emptyTable">No notifications match your current view.</div>:<div className="tableScroll"><div className="logTable"><div className="logRow header"><span>Notification</span><span>Recipient</span><span>Status</span><span>Created</span></div>{logs.map(n=><div className="logRow" key={n.id}><span><b>{n.title}</b><p className='notificationMessage'>{n.message}</p> <small>{n.id}</small></span><span>{n.recipient}</span><span><i className={`statusDot ${n.status}`}></i>{n.status}</span><span>{new Date(n.created_at).toLocaleString()}</span></div>)}</div></div>}</section>}
+
+function ReceiverPage({ project, apiKey, request, auth, notify, setPage, copy }) {
+  const [feed, setFeed] = useState([]);
+  const [pendingBuffer, setPendingBuffer] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [connStatus, setConnStatus] = useState(!project || !apiKey ? 'disconnected' : 'connecting');
+  const [sessionCount, setSessionCount] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [expandedIds, setExpandedIds] = useState(new Set());
+  const [reconnectKey, setReconnectKey] = useState(0);
+
+  const pausedRef = useRef(paused);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+
+  useEffect(() => {
+    if (!project || !apiKey) return;
+    let isMounted = true;
+    queueMicrotask(() => {
+      if (isMounted) {
+        setLoading(true);
+        setError(null);
+      }
+    });
+
+    request(`/api/projects/${project.id}/notifications?limit=50`, { headers: auth() })
+      .then((data) => {
+        if (isMounted) {
+          setFeed(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err.message);
+          setLoading(false);
+        }
+      });
+
+    return () => { isMounted = false; };
+  }, [project?.id, apiKey, reconnectKey]);
+
+  useEffect(() => {
+    if (!project || !apiKey) return;
+
+    let source;
+    try {
+      queueMicrotask(() => setConnStatus('connecting'));
+      source = new EventSource(`${API}/api/projects/${project.id}/events?token=${encodeURIComponent(apiKey)}`);
+
+      source.onopen = () => {
+        setConnStatus('connected');
+        setError(null);
+      };
+
+      source.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+
+          if (payload.event === 'connected') {
+            setConnStatus('connected');
+            return;
+          }
+
+          if (payload.event === 'notification.created') {
+            const raw = payload.data || payload;
+            const newNotif = {
+              id: raw.id,
+              recipient: raw.recipient,
+              title: raw.title,
+              message: raw.message,
+              type: raw.type || 'general',
+              status: raw.status || 'queued',
+              created_at: raw.created_at || new Date().toISOString(),
+              isLive: true,
+              raw: payload
+            };
+
+            setSessionCount(prev => prev + 1);
+
+            if (pausedRef.current) {
+              setPendingBuffer(prev => [newNotif, ...prev.filter(x => x.id !== newNotif.id)]);
+            } else {
+              setFeed(prev => [newNotif, ...prev.filter(x => x.id !== newNotif.id)]);
+            }
+          } else if (payload.event === 'notification.updated') {
+            const raw = payload.data || payload;
+            setFeed(prev => prev.map(item => (item.id === raw.id ? { ...item, status: raw.status || item.status } : item)));
+          }
+        } catch (e) {
+          console.error('SSE event parse error:', e);
+        }
+      };
+
+      source.onerror = () => {
+        if (source.readyState === EventSource.CONNECTING) {
+          setConnStatus('reconnecting');
+        } else if (source.readyState === EventSource.CLOSED) {
+          setConnStatus('disconnected');
+        }
+      };
+    } catch (err) {
+      queueMicrotask(() => {
+        setConnStatus('error');
+        setError(err.message);
+      });
+    }
+
+    return () => {
+      source?.close();
+    };
+  }, [project?.id, apiKey, reconnectKey]);
+
+  const flushBuffer = () => {
+    if (pendingBuffer.length > 0) {
+      setFeed(prev => {
+        const ids = new Set(pendingBuffer.map(p => p.id));
+        return [...pendingBuffer, ...prev.filter(x => !ids.has(x.id))];
+      });
+      setPendingBuffer([]);
+    }
+  };
+
+  const togglePause = () => {
+    if (paused && pendingBuffer.length > 0) {
+      flushBuffer();
+    }
+    setPaused(!paused);
+  };
+
+  const clearFeed = () => {
+    setFeed([]);
+    setPendingBuffer([]);
+    notify('Receiver feed cleared.');
+  };
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const filteredFeed = useMemo(() => {
+    return feed.filter(item => {
+      const q = search.trim().toLowerCase();
+      const matchesQ = !q || [item.id, item.recipient, item.title, item.message].some(v => String(v || '').toLowerCase().includes(q));
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      const matchesType = typeFilter === 'all' || (item.type || 'general') === typeFilter;
+      return matchesQ && matchesStatus && matchesType;
+    });
+  }, [feed, search, statusFilter, typeFilter]);
+
+  const stats = useMemo(() => ({
+    total: feed.length,
+    queued: feed.filter(x => x.status === 'queued').length,
+    delivered: feed.filter(x => x.status === 'delivered').length,
+    failed: feed.filter(x => x.status === 'failed').length,
+  }), [feed]);
+
+  if (!project || !apiKey) {
+    return (
+      <section className="pageSection">
+        <div className="pageIntro">
+          <div>
+            <span className="sectionLabel">LIVE RECEIVER</span>
+            <h2>Notification Receiver</h2>
+            <p>Connect to real-time Server-Sent Events to receive and inspect notifications as they arrive.</p>
+          </div>
+        </div>
+        <EmptyState 
+          icon="◈" 
+          title="Select a project and API key" 
+          text="Choose a project and ensure an active API key is set on Overview to connect to the SSE receiver stream." 
+          action="Go to overview" 
+          onClick={() => setPage('overview')} 
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section className="pageSection">
+      <div className="pageIntro">
+        <div>
+          <span className="sectionLabel">LIVE RECEIVER</span>
+          <h2>Notification Receiver</h2>
+          <p>Listening for real-time notifications on <b>{project.name}</b></p>
+        </div>
+        <div className="receiverHeaderActions">
+          <div className={`connectionPill ${connStatus}`} title={`Status: ${connStatus}`}>
+            <i className={`liveDot ${connStatus}`}></i>
+            <span>{connStatus === 'connected' ? 'Connected (Live)' : connStatus === 'connecting' ? 'Connecting…' : connStatus === 'reconnecting' ? 'Reconnecting…' : connStatus === 'error' ? 'Connection Error' : 'Disconnected'}</span>
+          </div>
+          <button className="secondary" onClick={() => setReconnectKey(k => k + 1)} title="Restart SSE connection">
+            ↻ Reconnect
+          </button>
+        </div>
+      </div>
+
+      <div className="statGrid">
+        <Stat label="Total in feed" value={stats.total} hint="Current receiver records" />
+        <Stat label="Received live" value={sessionCount} tone="green" hint="Arrived during this session" />
+        <Stat label="Queued status" value={stats.queued} tone="amber" hint="Awaiting delivery" />
+        <Stat label="Delivered status" value={stats.delivered} tone="green" hint="Confirmed delivered" />
+      </div>
+
+      {error && (
+        <div className="receiverErrorBanner">
+          <div className="errorIcon">!</div>
+          <div className="errorContent">
+            <b>Connection Error</b>
+            <p>{error}</p>
+          </div>
+          <button className="secondary" onClick={() => setReconnectKey(k => k + 1)}>Retry</button>
+        </div>
+      )}
+
+      <div className="receiverToolbar">
+        <div className="search">
+          <span>⌕</span>
+          <input 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+            placeholder="Filter by recipient, title, message or ID…" 
+          />
+        </div>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="all">All types</option>
+          <option value="general">general</option>
+          <option value="order">order</option>
+          <option value="alert">alert</option>
+          <option value="system">system</option>
+        </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="all">All statuses</option>
+          <option value="queued">Queued</option>
+          <option value="delivered">Delivered</option>
+          <option value="failed">Failed</option>
+        </select>
+        <button 
+          className={`receiverBtn ${paused ? 'active' : ''}`} 
+          onClick={togglePause}
+          title={paused ? 'Resume live stream updates' : 'Pause incoming live updates'}
+        >
+          {paused ? '▶ Resume stream' : '❚❚ Pause stream'}
+        </button>
+        <button 
+          className="receiverBtn" 
+          onClick={clearFeed} 
+          disabled={feed.length === 0}
+          title="Clear the current receiver feed"
+        >
+          Clear feed
+        </button>
+      </div>
+
+      {paused && pendingBuffer.length > 0 && (
+        <div className="pendingNotice" onClick={flushBuffer}>
+          <span>⚡ {pendingBuffer.length} new notification{pendingBuffer.length > 1 ? 's' : ''} received while paused</span>
+          <button type="button">Show now →</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="receiverLoadingState">
+          <div className="receiverLoadingSpinner"></div>
+          <b>Connecting to notification stream…</b>
+          <p>Initializing SSE connection and loading recent records for {project.name}</p>
+        </div>
+      ) : filteredFeed.length === 0 ? (
+        <div className="emptyState">
+          <div className="emptyIcon">◈</div>
+          <h3>{feed.length === 0 ? 'Waiting for notifications' : 'No matching notifications'}</h3>
+          <p>
+            {feed.length === 0 
+              ? `Connected to SSE stream for ${project.name}. As soon as a notification is published, it will appear here in real time.` 
+              : 'No notifications match your current search and filter criteria.'}
+          </p>
+          {feed.length === 0 && (
+            <button className="primary" onClick={() => setPage('overview')}>Send a test notification →</button>
+          )}
+        </div>
+      ) : (
+        <div className="receiverFeed">
+          {filteredFeed.map(item => (
+            <article className={`receiverCard ${item.isLive ? 'livePulseCard' : ''}`} key={item.id}>
+              <div className="receiverCardHeader">
+                <div className="receiverCardTitleGroup">
+                  <div className="receiverTitleRow">
+                    <h4>{item.title}</h4>
+                    {item.isLive && <span className="liveBadge">LIVE</span>}
+                  </div>
+                  <p className="receiverMessage">{item.message}</p>
+                </div>
+                <div className="receiverCardMeta">
+                  <span className="receiverMetaItem">
+                    <i className={`statusDot ${item.status}`}></i>
+                    {item.status}
+                  </span>
+                  <span className="typeBadge">{item.type || 'general'}</span>
+                  <time title={new Date(item.created_at).toLocaleString()}>
+                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </time>
+                </div>
+              </div>
+
+              <div className="receiverCardFooter">
+                <div className="receiverFooterLeft">
+                  <span className="recipientTag">Recipient: <b>{item.recipient}</b></span>
+                  <span className="idTag" onClick={() => copy(item.id)} title="Click to copy ID">
+                    <code>{item.id}</code>
+                  </span>
+                </div>
+                <button 
+                  className="payloadToggleBtn" 
+                  onClick={() => toggleExpand(item.id)}
+                >
+                  {expandedIds.has(item.id) ? 'Hide payload ▲' : 'Inspect payload ▼'}
+                </button>
+              </div>
+
+              {expandedIds.has(item.id) && (
+                <div className="payloadViewer">
+                  <Code 
+                    text={JSON.stringify(item.raw || item, null, 2)} 
+                    onCopy={() => copy(JSON.stringify(item.raw || item, null, 2))} 
+                  />
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 createRoot(document.getElementById('root')).render(<App/>);
