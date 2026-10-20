@@ -1,0 +1,6 @@
+{$DOMAIN:localhost} {
+    reverse_proxy frontend:80 {
+        # Flush SSE and chunked streams immediately
+        flush_interval -1
+    }
+}
