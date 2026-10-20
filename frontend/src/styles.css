@@ -235,3 +235,12 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
   .heroBar{display:block;padding:13px}.newProjectForm{margin-top:12px}.newProjectForm input{width:100%;min-width:0}.newProjectForm button{white-space:nowrap}.projectPicker select{width:100%}.projectPicker{display:grid;grid-template-columns:1fr auto}.statGrid{grid-template-columns:1fr 1fr;gap:8px}.statCard{min-height:105px;padding:13px}.grid2{gap:10px}.formRow{grid-template-columns:1fr}.pageIntro{display:block}.createInline{margin-top:12px}.createInline input{width:100%;flex:1}.projectGrid{grid-template-columns:1fr}.keyRow{align-items:flex-start;flex-direction:column}.keyMeta{width:100%;justify-content:space-between;flex-wrap:wrap}.filters{flex-direction:column}.filters select{width:100%}.logStats{margin-top:12px;flex-wrap:wrap}.dangerBox{align-items:flex-start;flex-direction:column}.docsGrid,.settingsGrid{gap:10px}.themeCards{grid-template-columns:1fr}.emptyState{min-height:330px}.toast{bottom:78px;right:12px}.topbar h1{font-size:28px}
 }
 @media (max-width: 420px){.statGrid{grid-template-columns:1fr 1fr}.statCard b{font-size:22px}.heroBar{border-radius:13px}.panel{padding:14px}.logRow{padding:11px 13px}.logTable{min-width:610px}}
+
+.notificationMessage {
+  margin: 4px 0;
+  color: #a0aec0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
