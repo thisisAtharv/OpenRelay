@@ -277,6 +277,21 @@ function ReceiverPage({ project, apiKey, request, auth, notify, setPage, copy })
             } else {
               setFeed(prev => [newNotif, ...prev.filter(x => x.id !== newNotif.id)]);
             }
+
+            request(`/api/v1/notifications/${raw.id}/ack`, {
+              method: 'POST',
+              headers: auth()
+            })
+              .then((ackRes) => {
+                if (ackRes?.status) {
+                  setFeed(prev => prev.map(item => (item.id === raw.id ? { ...item, status: ackRes.status } : item)));
+                  setPendingBuffer(prev => prev.map(item => (item.id === raw.id ? { ...item, status: ackRes.status } : item)));
+                }
+              })
+              .catch((err) => {
+                console.error(`Acknowledgement failed for notification ${raw.id}:`, err);
+                notify(`Failed to acknowledge notification ${raw.id?.slice(0, 8)}: ${err.message}`, 'error');
+              });
           } else if (payload.event === 'notification.updated') {
             const raw = payload.data || payload;
             setFeed(prev => prev.map(item => (item.id === raw.id ? { ...item, status: raw.status || item.status } : item)));

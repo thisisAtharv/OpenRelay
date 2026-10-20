@@ -247,6 +247,58 @@ app.get('/api/v1/notifications/:notificationId', authenticate, async (req, res, 
   } catch (error) { next(error); }
 });
 
+app.post('/api/v1/notifications/:notificationId/ack', authenticate, async (req, res, next) => {
+  try {
+    const { notificationId } = req.params;
+    const { rows } = await pool.query(
+      'SELECT id, project_id, status, delivered_at FROM notifications WHERE id=$1 AND project_id=$2',
+      [notificationId, req.projectId]
+    );
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    const notif = rows[0];
+
+    if (notif.status === 'failed') {
+      return res.status(409).json({ error: 'Notification has failed and cannot be marked delivered', status: 'failed' });
+    }
+
+    if (notif.status === 'delivered') {
+      return res.json({ ok: true, id: notif.id, status: 'delivered', delivered_at: notif.delivered_at, duplicate: true });
+    }
+
+    const updateResult = await pool.query(
+      'UPDATE notifications SET status=$1, updated_at=NOW(), delivered_at=NOW() WHERE id=$2 AND project_id=$3 AND status=$4 RETURNING id, status, delivered_at, updated_at',
+      ['delivered', notificationId, req.projectId, 'queued']
+    );
+
+    if (updateResult.rowCount === 0) {
+      const fresh = await pool.query('SELECT id, status, delivered_at FROM notifications WHERE id=$1 AND project_id=$2', [notificationId, req.projectId]);
+      return res.json({ ok: true, id: notificationId, status: fresh.rows[0]?.status || notif.status, delivered_at: fresh.rows[0]?.delivered_at });
+    }
+
+    const updated = updateResult.rows[0];
+
+    await pool.query(
+      `INSERT INTO notification_attempts(id, notification_id, attempt_number, status, attempted_at)
+       VALUES($1, $2, (SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM notification_attempts WHERE notification_id=$2), $3, NOW())`,
+      [makeId(), notificationId, 'delivered']
+    );
+
+    publish(req.projectId, {
+      event: 'notification.updated',
+      id: updated.id,
+      status: 'delivered',
+      delivered_at: updated.delivered_at,
+      updated_at: updated.updated_at
+    });
+
+    res.json({ ok: true, id: updated.id, status: 'delivered', delivered_at: updated.delivered_at });
+  } catch (error) { next(error); }
+});
+
 app.get('/api/projects/:projectId/notifications', authenticate, requireProject, async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 200);
@@ -278,7 +330,51 @@ app.get('/api/projects/:projectId/events', async (req, res, next) => {
   if (!clients.has(projectId)) clients.set(projectId, new Set());
   clients.get(projectId).add(res);
   res.write(`data: ${JSON.stringify({ event: 'connected' })}\n\n`);
-  const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25000);
+
+  // Replay pending queued notifications to this newly connected client only
+  try {
+    const { rows: pending } = await pool.query(
+      `SELECT id, recipient, title, message, type, status, created_at
+       FROM notifications
+       WHERE project_id = $1 AND status = 'queued'
+       ORDER BY created_at ASC`,
+      [projectId]
+    );
+
+    for (const notification of pending) {
+      if (res.writableEnded) break;
+      const payload = {
+        event: 'notification.created',
+        id: notification.id,
+        recipient: notification.recipient,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        status: notification.status,
+        created_at: notification.created_at,
+        data: {
+          id: notification.id,
+          recipient: notification.recipient,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          status: notification.status,
+          created_at: notification.created_at
+        }
+      };
+      try {
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        break;
+      }
+    }
+  } catch (err) {
+    console.error('Error replaying pending notifications:', err);
+  }
+
+  const heartbeat = setInterval(() => {
+    try { res.write(': heartbeat\n\n'); } catch {}
+  }, 25000);
   req.on('close', () => {
     clearInterval(heartbeat);
     clients.get(projectId)?.delete(res);
