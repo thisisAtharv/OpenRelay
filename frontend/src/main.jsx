@@ -669,6 +669,15 @@ function ResetPasswordPage({ token, onBackToLogin, request }) {
     }
   };
 
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        onBackToLogin();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success, onBackToLogin]);
+
   return (
     <div className="resetPageContainer">
       <div className="resetCard">
@@ -694,7 +703,7 @@ function ResetPasswordPage({ token, onBackToLogin, request }) {
         ) : success ? (
           <div className="resetSuccessCard">
             <div className="resetAlertBadge success">Password Updated</div>
-            <p>Your password has been successfully reset. You can now sign in with your new credentials.</p>
+            <p>Your password has been successfully reset. Redirecting to sign in…</p>
             <button type="button" className="authSubmitButton" onClick={onBackToLogin}>
               Sign In to OpenRelay
             </button>
@@ -1049,15 +1058,29 @@ function App() {
   const [message, setMessage] = useState('Your order #4821 has been shipped.');
   const [type, setType] = useState('general');
 
-  // Reset password token detection from URL query params
+  // Reset password token detection from URL query params (search or hash)
   const [resetToken, setResetToken] = useState(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('token') || params.get('reset_token') || null;
+      const searchParams = new URLSearchParams(window.location.search);
+      let token = searchParams.get('token') || searchParams.get('reset_token');
+      if (!token && window.location.hash.includes('token=')) {
+        const hashQuery = window.location.hash.slice(window.location.hash.indexOf('?') !== -1 ? window.location.hash.indexOf('?') : 1);
+        const hashParams = new URLSearchParams(hashQuery);
+        token = hashParams.get('token') || hashParams.get('reset_token');
+      }
+      return token ? token.trim() : null;
     } catch {
       return null;
     }
   });
+
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get('token') || searchParams.get('reset_token');
+      if (token) setResetToken(token.trim());
+    } catch {}
+  }, []);
 
   // Dashboard User Authentication state
   const [user, setUser] = useState(null);
@@ -1232,13 +1255,8 @@ function App() {
     return matchesQ && matchesStatus && matchesChannel;
   }), [logs,search,statusFilter,channelFilter]);
 
-  if (!authChecked) {
-    return <div className="shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading OpenRelay…</div>
-    </div>;
-  }
-
-  if (resetToken && !user) {
+  // Prioritize password reset token flow before any dashboard or session redirects
+  if (resetToken) {
     return (
       <div className="landingShell">
         <ResetPasswordPage
@@ -1251,6 +1269,7 @@ function App() {
               url.searchParams.delete('reset_token');
               window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
             } catch {}
+            setUser(null);
             setAuthMode('login');
             setAuthModalOpen(true);
           }}
@@ -1265,6 +1284,12 @@ function App() {
         )}
       </div>
     );
+  }
+
+  if (!authChecked) {
+    return <div className="shell" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ color: 'var(--muted)', fontSize: '13px' }}>Loading OpenRelay…</div>
+    </div>;
   }
 
   if (!user) {
