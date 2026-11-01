@@ -198,21 +198,34 @@ GET /api/projects/:projectId/events?token=or_live_your_actual_key_here
 
 ### Endpoints Overview
 
+#### Authentication & Session Management
+| Method | Endpoint | Auth Required | Description |
+|---|---|:---:|---|
+| `POST` | `/api/auth/register` | No | Register a new developer account with email & password (password hashed with scrypt) |
+| `POST` | `/api/auth/login` | No | Authenticate developer, enforce rate limiting (max 5 failed attempts/15m), set HttpOnly cookie |
+| `POST` | `/api/auth/logout` | Session | Invalidate session in PostgreSQL and clear session cookie |
+| `GET` | `/api/auth/me` | Session | Retrieve profile and session details for the authenticated developer |
+
+#### Dashboard Project Management (Owner-isolated)
+| Method | Endpoint | Auth Required | Description |
+|---|---|:---:|---|
+| `GET` | `/api/projects` | Session | List projects owned by the authenticated developer |
+| `POST` | `/api/projects` | Session | Create a new project owned by the authenticated developer |
+| `DELETE` | `/api/projects/:projectId` | Session or API Key | Delete a project (enforces project ownership) |
+| `GET` | `/api/projects/:projectId/keys` | Session or API Key | List active and revoked API keys for the specified project |
+| `POST` | `/api/projects/:projectId/keys` | Session or API Key | Generate a new named API key for the project |
+| `POST` | `/api/projects/:projectId/keys/:keyId/revoke` | Session or API Key | Revoke an existing API key |
+| `GET` | `/api/projects/:projectId/notifications` | Session or API Key | Fetch paginated notification audit history for a project |
+
+#### Ingestion & Delivery APIs (External Applications)
 | Method | Endpoint | Auth Required | Description |
 |---|---|:---:|---|
 | `GET` | `/` | No | Service metadata, version, and documentation link |
 | `GET` | `/health` | No | Health check validating backend & PostgreSQL database connectivity |
-| `POST` | `/api/projects` | No | Bootstrap a new project and receive its initial root API key |
-| `GET` | `/api/projects` | No | List all projects with associated notification counts |
-| `DELETE` | `/api/projects/:projectId` | Yes | Permanently delete a project, its keys, and all notification history |
-| `GET` | `/api/projects/:projectId/keys` | Yes | List active and revoked API keys for the specified project |
-| `POST` | `/api/projects/:projectId/keys` | Yes | Generate a new named API key for the project |
-| `POST` | `/api/projects/:projectId/keys/:keyId/revoke` | Yes | Revoke an existing API key |
-| `POST` | `/api/v1/notifications` | Yes | Ingest a new notification and publish to the SSE stream |
-| `GET` | `/api/v1/notifications/:notificationId` | Yes | Fetch single notification details by UUID |
-| `POST` | `/api/v1/notifications/:notificationId/ack` | Yes | Acknowledge delivery and transition status to `delivered` |
-| `GET` | `/api/projects/:projectId/notifications` | Yes | Fetch paginated notification audit history for a project |
-| `GET` | `/api/projects/:projectId/events` | Yes | Establish a persistent SSE stream for real-time notification events |
+| `POST` | `/api/v1/notifications` | API Key | Ingest a new notification (supports `channel: "sse"` or `"email"`) |
+| `GET` | `/api/v1/notifications/:notificationId` | API Key | Fetch single notification details by UUID |
+| `POST` | `/api/v1/notifications/:notificationId/ack` | API Key | Acknowledge delivery and transition status to `delivered` (SSE only) |
+| `GET` | `/api/projects/:projectId/events` | API Key | Establish a persistent SSE stream for real-time notification events |
 
 ---
 
@@ -250,13 +263,14 @@ curl -X POST https://notify.example.com/api/projects \
 > [!IMPORTANT]
 > The full `apiKey` is returned only once at creation time. OpenRelay stores a one-way SHA-256 hash. Store the returned secret in a secure secrets manager.
 
-#### 3. Send a Notification
+#### 3. Send a Notification (SSE Channel - Default)
 ```bash
 curl -X POST https://notify.example.com/api/v1/notifications \
   -H "Authorization: Bearer or_live_a3f81e9b2c4d6f8a0e1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e" \
   -H "Content-Type: application/json" \
   -d '{
     "recipient": "customer_9821",
+    "channel": "sse",
     "title": "Order Dispatched",
     "message": "Package #4821 has left our fulfilment warehouse.",
     "type": "order"
@@ -266,11 +280,36 @@ curl -X POST https://notify.example.com/api/v1/notifications \
 ```json
 {
   "id": "a98a8a4f-5cf8-4c22-b5e1-cfcf5877fba1",
-  "status": "queued"
+  "status": "queued",
+  "channel": "sse"
 }
 ```
 
-#### 4. Connect to Real-Time SSE Stream
+#### 4. Send an Email Notification (SMTP Delivery)
+```bash
+curl -X POST https://notify.example.com/api/v1/notifications \
+  -H "Authorization: Bearer or_live_a3f81e9b2c4d6f8a0e1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "recipient": "customer@example.com",
+    "channel": "email",
+    "title": "Your Order Has Shipped",
+    "message": "Your package #4821 has been shipped via Express Delivery.",
+    "type": "order"
+  }'
+```
+**Response (`200 OK`):**
+```json
+{
+  "id": "b12c8a4f-7cf8-4c22-b5e1-cfcf5877fba2",
+  "status": "sent",
+  "channel": "email"
+}
+```
+> [!NOTE]
+> For email notifications, successful SMTP acceptance is recorded as `sent` (not falsely marked `delivered`). If SMTP submission fails, status is recorded as `failed` with HTTP 502. Email notifications cannot be acknowledged via the SSE receiver endpoint.
+
+#### 5. Connect to Real-Time SSE Stream
 ```bash
 curl -N -H "Authorization: Bearer or_live_a3f81e9b2c4d6f8a0e1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e" \
   https://notify.example.com/api/projects/7b0d87a5-c49b-449e-9907-75e1140228cf/events
@@ -284,7 +323,7 @@ data: {"event":"notification.created","id":"a98a8a4f-5cf8-4c22-b5e1-cfcf5877fba1
 : heartbeat
 ```
 
-#### 5. Acknowledge Delivery
+#### 6. Acknowledge Delivery
 ```bash
 curl -X POST https://notify.example.com/api/v1/notifications/a98a8a4f-5cf8-4c22-b5e1-cfcf5877fba1/ack \
   -H "Authorization: Bearer or_live_a3f81e9b2c4d6f8a0e1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e"
