@@ -111,6 +111,7 @@ curl -X POST http://localhost:4000/api/v1/notifications \\
 };
 
 function LandingPage({ health, onOpenAuth, copy }) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [heroChannel, setHeroChannel] = useState('sse');
   const [slideIndex, setSlideIndex] = useState(CAROUSEL_CARDS.length);
   const [isTransitioning, setIsTransitioning] = useState(true);
@@ -181,6 +182,7 @@ function LandingPage({ health, onOpenAuth, copy }) {
   const activeDot = slideIndex % CAROUSEL_CARDS.length;
 
   const scrollToSection = (id) => {
+    setMobileNavOpen(false);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
@@ -286,9 +288,9 @@ function LandingPage({ health, onOpenAuth, copy }) {
   return (
     <>
       {/* Sticky Glass Navbar */}
-      <header className="landingNav">
+      <header className={`landingNav ${mobileNavOpen ? 'mobileOpen' : ''}`}>
         <div className="landingNavInner">
-          <div className="navBrandLink" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="navBrandLink" onClick={() => { setMobileNavOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
             <div className="brandMarkGlow">O</div>
             <span className="navBrandTitle">OpenRelay</span>
             <span className="navVersionPill">v1.2</span>
@@ -305,14 +307,72 @@ function LandingPage({ health, onOpenAuth, copy }) {
               <i className="statusDotPulse"></i>
               {health ? 'API Operational' : 'Local Instance'}
             </span>
-            <button type="button" className="btnGhost" onClick={() => onOpenAuth('login')}>
+            <button type="button" className="btnGhost navSignInDesktop" onClick={() => { setMobileNavOpen(false); onOpenAuth('login'); }}>
               Sign in
             </button>
-            <button type="button" className="btnPrimaryGlow" onClick={() => onOpenAuth('register')}>
+            <button type="button" className="btnPrimaryGlow navGetStartedDesktop" onClick={() => { setMobileNavOpen(false); onOpenAuth('register'); }}>
               Get Started →
+            </button>
+            <button
+              type="button"
+              className="mobileNavToggleBtn"
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileNavOpen}
+            >
+              {mobileNavOpen ? '✕' : '☰'}
             </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer for iPhone and small viewports */}
+        {mobileNavOpen && (
+          <div className="mobileNavDrawer" role="navigation" aria-label="Mobile Navigation">
+            <div className="mobileNavLinksGroup">
+              <button type="button" className="mobileNavLinkItem" onClick={() => scrollToSection('features')}>
+                <span className="mobileNavIcon">⚡</span>
+                <span className="mobileNavText">Features</span>
+              </button>
+              <button type="button" className="mobileNavLinkItem" onClick={() => scrollToSection('how-it-works')}>
+                <span className="mobileNavIcon">🛠</span>
+                <span className="mobileNavText">How It Works</span>
+              </button>
+              <button type="button" className="mobileNavLinkItem" onClick={() => scrollToSection('architecture')}>
+                <span className="mobileNavIcon">🏗</span>
+                <span className="mobileNavText">Architecture</span>
+              </button>
+            </div>
+            <div className="mobileNavDivider" />
+            <div className="mobileNavStatusRow">
+              <span className="navStatusBadgeMobile">
+                <i className="statusDotPulse"></i>
+                {health ? 'API Operational' : 'Local Instance'}
+              </span>
+            </div>
+            <div className="mobileNavActionsRow">
+              <button
+                type="button"
+                className="btnGhost wide"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  onOpenAuth('login');
+                }}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                className="btnPrimaryGlow wide"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  onOpenAuth('register');
+                }}
+              >
+                Get Started Free →
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -1351,9 +1411,24 @@ function App() {
 
     <main className="main">
       <header className="topbar">
-        <div className="mobileBrand"><div className="brandMark">O</div><b>OpenRelay</b></div>
-        <div><div className="eyebrow">Developer console</div><h1>{NAV.find(x=>x[0]===page)?.[1]}</h1><p>{page==='overview'?'Send, inspect and debug notifications from one lightweight console.':page==='receiver'?'Real-time notification listener via Server-Sent Events (SSE).':page==='projects'?'Organize notification traffic by application.':page==='keys'?'Manage the credentials your applications use.':page==='logs'?'Monitor delivery activity and troubleshoot failures.':page==='docs'?'Copy the integration you need and ship.':'Control appearance and instance details.'}</p></div>
-        <div className="topActions"><span className="healthBadge"><i className={health?'online':'offline'}></i>{health?'All systems operational':'API unavailable'}</span></div>
+        <div className="mobileTopBar">
+          <div className="mobileBrand"><div className="brandMark">O</div><b>OpenRelay</b></div>
+          <div className="mobileUserHeader">
+            <div className="mobileUserPill" title={user.email}>
+              <span className="userAvatarMini">{user.name ? user.name.slice(0, 1).toUpperCase() : user.email.slice(0, 1).toUpperCase()}</span>
+              <span className="mobileUserName">{user.name || user.email.split('@')[0]}</span>
+            </div>
+            <button className="mobileSignOutBtn" onClick={handleLogout} title="Sign out">Sign out</button>
+          </div>
+        </div>
+        <div className="topbarHeading">
+          <div className="eyebrow">Developer console</div>
+          <h1>{NAV.find(x=>x[0]===page)?.[1]}</h1>
+          <p>{page==='overview'?'Send, inspect and debug notifications from one lightweight console.':page==='receiver'?'Real-time notification listener via Server-Sent Events (SSE).':page==='projects'?'Organize notification traffic by application.':page==='keys'?'Manage the credentials your applications use.':page==='logs'?'Monitor delivery activity and troubleshoot failures.':page==='docs'?'Copy the integration you need and ship.':'Control appearance and instance details.'}</p>
+        </div>
+        <div className="topActions">
+          <span className="healthBadge"><i className={health?'online':'offline'}></i>{health?'All systems operational':'API unavailable'}</span>
+        </div>
       </header>
 
       {toast && <div className={`toast ${toast.kind}`}><span>{toast.kind==='success'?'✓':'!'}</span><b>{toast.message}</b><button onClick={()=>setToast(null)}>×</button></div>}

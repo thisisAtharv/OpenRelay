@@ -54,14 +54,15 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { min-height: 100%; margin: 0; }
+html, body, #root { min-height: 100%; margin: 0; max-width: 100vw; overflow-x: hidden; }
+html, body { -webkit-tap-highlight-color: transparent; }
 body { background: var(--bg); color: var(--text); }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .58; }
 ::selection { background: var(--accent); color: #fff; }
 
-.shell { min-height: 100vh; display: flex; background: var(--bg); }
+.shell { min-height: 100vh; display: flex; background: var(--bg); max-width: 100vw; overflow-x: hidden; }
 
 /* Sidebar */
 .sidebar {
@@ -227,30 +228,597 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
 
 .toast { position:fixed; right:22px; bottom:22px; z-index:100; display:flex; align-items:center; gap:9px; max-width:min(380px,calc(100vw - 44px)); padding:11px 12px; background:var(--surface); border:1px solid var(--border-strong); border-radius:11px; box-shadow:var(--shadow); font-size:10px; }
 .toast > span{width:20px;height:20px;border-radius:7px;display:grid;place-items:center;background:var(--green-soft);color:var(--green);font-weight:800}.toast.error>span{background:var(--red-soft);color:var(--red)}.toast button{margin-left:auto;border:0;background:transparent;color:var(--muted);font-size:16px}
-.modalBackdrop { position:fixed; inset:0; background:rgba(3,6,11,.68); backdrop-filter:blur(8px); z-index:80; display:grid; place-items:center; padding:20px; }
-.modal { width:min(460px,100%); background:var(--surface); border:1px solid var(--border-strong); border-radius:18px; padding:22px; box-shadow:0 30px 100px rgba(0,0,0,.45); }
+.modalBackdrop { position:fixed; inset:0; background:rgba(3,6,11,.75); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:180; display:grid; place-items:center; padding:16px; }
+.modal { width:min(460px,100%); max-height:calc(100vh - 40px); overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--surface); border:1px solid var(--border-strong); border-radius:18px; padding:22px; box-shadow:0 30px 100px rgba(0,0,0,.6); }
 .modalIcon { width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--green-soft);color:var(--green);font-weight:900;margin-bottom:13px}.modalIcon.warning{background:var(--amber-soft);color:var(--amber)}.modalIcon.dangerIcon{background:var(--red-soft);color:var(--red)}
 .modal h3{margin:0;font:800 17px Manrope,sans-serif;letter-spacing:-.03em}.modal p{color:var(--muted);font-size:10px;line-height:1.6;margin:7px 0 15px}.modal input{width:100%;margin-bottom:12px}.secretBox{display:flex;gap:7px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px;margin-bottom:12px}.secretBox code{flex:1;overflow:auto;padding:4px;font:9px ui-monospace,monospace;color:var(--accent)}.secretBox button{border:1px solid var(--border);background:var(--surface-3);color:var(--text);border-radius:7px;padding:6px 9px;font-size:9px}.modalActions{display:flex;justify-content:flex-end;gap:8px}
 
+/* Mobile topbar elements hidden by default on desktop */
+.mobileTopBar { display: none; }
+.mobileBrand { display: none; }
+.mobileUserHeader { display: none; }
+
 @media (max-width: 1100px){
-  .main{padding-left:28px;padding-right:28px}.statGrid{grid-template-columns:repeat(2,1fr)}.projectGrid{grid-template-columns:repeat(2,1fr)}.grid2,.docsGrid,.settingsGrid{grid-template-columns:1fr}.sidebar{width:220px;flex-basis:220px}.main{margin-left:220px;width:calc(100% - 220px)}
+  .main { padding-left: 28px; padding-right: 28px; }
+  .statGrid { grid-template-columns: repeat(2, 1fr); }
+  .projectGrid { grid-template-columns: repeat(2, 1fr); }
+  .grid2, .docsGrid, .settingsGrid { grid-template-columns: 1fr; }
+  .sidebar { width: 220px; flex-basis: 220px; }
+  .main { margin-left: 220px; width: calc(100% - 220px); }
 }
-@media (max-width: 760px){
-  .sidebar{position:fixed;top:auto;left:0;right:0;bottom:0;width:100%;height:64px;min-height:64px;padding:6px 8px;flex-direction:row;align-items:center;border-right:0;border-top:1px solid var(--border);background:color-mix(in srgb,var(--surface) 96%,transparent);backdrop-filter:blur(16px)}
-  .brand,.projectSelectSide,.sidebarBottom{display:none}
-  .sidebar nav{width:100%;display:flex;overflow-x:auto;gap:3px;padding:2px 0;scrollbar-width:none}
-  .sidebar nav::-webkit-scrollbar{display:none}
-  .navItem{flex:0 0 auto;min-width:50px;justify-content:center;flex-direction:column;gap:2px;padding:5px 6px;font-size:8px}
-  .navItem span{font-size:13px;width:auto}
-  .main{margin-left:0;width:100%;padding:22px 14px 90px}.topbar{display:block;margin-bottom:20px}.mobileBrand{display:flex;align-items:center;gap:8px;margin-bottom:18px}.mobileBrand .brandMark{width:28px;height:28px;border-radius:8px}.mobileBrand b{font:700 13px Manrope,sans-serif}.topActions{margin-top:12px}.healthBadge{font-size:9px}
-  .heroBar{display:block;padding:13px}.newProjectForm{margin-top:12px}.newProjectForm input{width:100%;min-width:0}.newProjectForm button{white-space:nowrap}.projectPicker select{width:100%}.projectPicker{display:grid;grid-template-columns:1fr auto}.statGrid{grid-template-columns:1fr 1fr;gap:8px}.statCard{min-height:105px;padding:13px}.grid2{gap:10px}.formRow{grid-template-columns:1fr}.pageIntro{display:block}.createInline{margin-top:12px}.createInline input{width:100%;flex:1}.projectGrid{grid-template-columns:1fr}.keyRow{align-items:flex-start;flex-direction:column}.keyMeta{width:100%;justify-content:space-between;flex-wrap:wrap}.filters{flex-direction:column}.filters select{width:100%}.logStats{margin-top:12px;flex-wrap:wrap}.dangerBox{align-items:flex-start;flex-direction:column}.docsGrid,.settingsGrid{gap:10px}.themeCards{grid-template-columns:1fr}.emptyState{min-height:330px}.toast{bottom:78px;right:12px}.topbar h1{font-size:28px}
-  .receiverHeaderActions{margin-top:12px}
-  .receiverToolbar{flex-direction:column;align-items:stretch}
-  .receiverToolbar select{width:100%}
-  .receiverCardHeader{flex-direction:column;gap:10px}
-  .receiverCardFooter{flex-direction:column;align-items:flex-start;gap:10px}
+
+@media (max-width: 768px){
+  /* Dashboard Bottom Dock Bar Navigation */
+  .sidebar {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-right: 0 !important;
+    border-top: 1px solid var(--border-strong) !important;
+    background: rgba(12, 17, 26, 0.96) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    z-index: 100 !important;
+    box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.6) !important;
+  }
+  .brand, .userBadgeSide, .projectSelectSide, .sidebarBottom {
+    display: none !important;
+  }
+  .sidebar nav {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 4px !important;
+    padding: 2px 4px !important;
+    margin: 0 !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x mandatory !important;
+  }
+  .sidebar nav::-webkit-scrollbar {
+    display: none !important;
+  }
+  .navItem {
+    scroll-snap-align: center !important;
+    flex: 0 0 auto !important;
+    min-width: 58px !important;
+    width: auto !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    padding: 4px 6px !important;
+    border-radius: 9px !important;
+    font-size: 9.5px !important;
+    font-weight: 600 !important;
+    color: #8d98aa !important;
+    background: transparent !important;
+    border: 0 !important;
+    white-space: nowrap !important;
+    text-align: center !important;
+    transition: all 0.15s ease !important;
+  }
+  .navItem span {
+    font-size: 16px !important;
+    line-height: 1 !important;
+    width: auto !important;
+    color: #647083 !important;
+  }
+  .navItem:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+  .navItem.active {
+    color: #fff !important;
+    background: rgba(59, 130, 246, 0.22) !important;
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.4) !important;
+  }
+  .navItem.active span {
+    color: #38bdf8 !important;
+  }
+
+  /* Main Container on Mobile */
+  .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 16px 14px calc(86px + env(safe-area-inset-bottom, 0px)) !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Mobile Topbar */
+  .topbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+  .mobileTopBar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .mobileBrand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .mobileBrand .brandMark {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 9px !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    display: grid !important;
+    place-items: center !important;
+    box-shadow: 0 4px 12px rgba(124, 156, 255, 0.25) !important;
+  }
+  .mobileBrand b {
+    font: 800 15px 'Manrope', sans-serif !important;
+    color: #fff !important;
+    letter-spacing: -0.02em !important;
+  }
+  .mobileUserHeader {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+  .mobileUserPill {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    padding: 4px 8px !important;
+    border-radius: 20px !important;
+    max-width: 130px !important;
+  }
+  .userAvatarMini {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, var(--accent), #a0b7ff) !important;
+    color: #fff !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    flex: 0 0 20px !important;
+  }
+  .mobileUserName {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--text) !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .mobileSignOutBtn {
+    border: 1px solid rgba(255, 102, 120, 0.25) !important;
+    background: rgba(255, 102, 120, 0.1) !important;
+    color: var(--red) !important;
+    border-radius: 7px !important;
+    padding: 5px 9px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all 0.15s ease !important;
+  }
+  .mobileSignOutBtn:hover {
+    background: var(--red) !important;
+    color: #fff !important;
+  }
+
+  .topbarHeading h1 {
+    font-size: clamp(24px, 5.5vw, 30px) !important;
+    margin: 4px 0 6px !important;
+  }
+  .topbarHeading p {
+    font-size: 11.5px !important;
+    line-height: 1.5 !important;
+  }
+  .topActions {
+    margin-top: 0 !important;
+  }
+  .healthBadge {
+    font-size: 9.5px !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Overview & Forms on Mobile */
+  .heroBar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+  .projectPicker {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .projectPicker select {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    font-size: 13px !important;
+  }
+  .projectPicker button {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 12px !important;
+  }
+  .newProjectForm {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .newProjectForm input {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 42px !important;
+    font-size: 13px !important;
+  }
+  .newProjectForm button {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .statCard {
+    min-height: 104px !important;
+    padding: 13px !important;
+    border-radius: 12px !important;
+  }
+  .statCard b {
+    font-size: 22px !important;
+  }
+  .grid2 {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+  .panel {
+    padding: 16px 14px !important;
+    border-radius: 14px !important;
+  }
+  .formRow {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .field input, .field select, .field textarea {
+    font-size: 13px !important;
+  }
+  .field input, .field select {
+    height: 42px !important;
+  }
+  .keyInput {
+    display: flex !important;
+    gap: 6px !important;
+  }
+  .keyInput input {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 42px !important;
+  }
+  .keyInput button {
+    min-height: 42px !important;
+    padding: 0 10px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+  .primary.wide {
+    height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  /* Responsive Tables */
+  .tableScroll {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin !important;
+    max-width: 100% !important;
+    overscroll-behavior-x: contain !important;
+  }
+  .logTable {
+    min-width: 580px !important;
+  }
+  .logRow {
+    grid-template-columns: 1.25fr 1.15fr 0.85fr 1fr !important;
+    gap: 12px !important;
+    padding: 12px 14px !important;
+    font-size: 10.5px !important;
+  }
+  .notificationMessage {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  /* Receiver Screen */
+  .receiverHeaderActions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+  .receiverToolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .receiverToolbar .search {
+    width: 100% !important;
+  }
+  .receiverToolbar .search input {
+    width: 100% !important;
+    height: 42px !important;
+  }
+  .receiverToolbar select {
+    width: 100% !important;
+    height: 42px !important;
+  }
+  .receiverBtn {
+    width: 100% !important;
+    height: 42px !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+  }
+  .receiverCard {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+  .receiverCardHeader {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .receiverCardMeta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  .receiverCardFooter {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .receiverFooterLeft {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .recipientTag, .idTag {
+    font-size: 10.5px !important;
+  }
+  .payloadToggleBtn {
+    width: 100% !important;
+    height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    font-size: 11px !important;
+  }
+  .payloadViewer {
+    max-width: 100% !important;
+    overflow-x: auto !important;
+  }
+
+  /* Projects & API Keys */
+  .pageIntro {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+  .pageIntro h2 {
+    font-size: 20px !important;
+  }
+  .createInline, .createKey {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+  .createInline input, .createKey input {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    font-size: 13px !important;
+  }
+  .createInline button, .createKey button {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 12px !important;
+  }
+  .projectGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .projectCard {
+    padding: 14px !important;
+  }
+  .cardActions button {
+    height: 38px !important;
+    padding: 6px 14px !important;
+    font-size: 11px !important;
+  }
+  .keyRow {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .keyMeta {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+  }
+  .dangerOutline {
+    height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+  }
+
+  /* Logs, Docs, Settings */
+  .logStats {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+  .logStats span {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 8px 10px !important;
+    font-size: 10px !important;
+  }
+  .filters {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .filters select {
+    width: 100% !important;
+    height: 42px !important;
+  }
+  .docsGrid, .settingsGrid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .themeCards {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .dangerBox {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .dangerButton {
+    width: 100% !important;
+    height: 42px !important;
+    text-align: center !important;
+  }
+  .toast {
+    position: fixed !important;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 12px !important;
+    left: 12px !important;
+    max-width: none !important;
+    width: auto !important;
+    z-index: 150 !important;
+  }
+  .modalBackdrop {
+    padding: 16px !important;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 440px !important;
+    max-height: calc(100vh - 40px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 20px 16px !important;
+    border-radius: 16px !important;
+  }
+  .modalActions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .modalActions button {
+    width: 100% !important;
+    height: 42px !important;
+  }
+  .secretBox {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .secretBox button {
+    height: 38px !important;
+  }
 }
-@media (max-width: 420px){.statGrid{grid-template-columns:1fr 1fr}.statCard b{font-size:22px}.heroBar{border-radius:13px}.panel{padding:14px}.logRow{padding:11px 13px}.logTable{min-width:610px}}
+
+@media (max-width: 440px){
+  /* iPhone 16 Pro Max and compact mobile refinements */
+  .statGrid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  .statCard b {
+    font-size: 20px !important;
+  }
+  .heroBar {
+    border-radius: 13px !important;
+    padding: 12px !important;
+  }
+  .panel {
+    padding: 14px 12px !important;
+  }
+  .logRow {
+    padding: 11px 12px !important;
+  }
+  .logTable {
+    min-width: 560px !important;
+  }
+  .navItem {
+    min-width: 52px !important;
+    font-size: 9px !important;
+  }
+}
 
 .notificationMessage {
   margin: 4px 0;
@@ -702,10 +1270,16 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
   margin-left: 4px;
 }
 .navLinksList {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 32px !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 32px;
+}
+.mobileNavToggleBtn {
+  display: none;
+}
+.mobileNavDrawer {
+  display: none;
 }
 .navLinkItem {
   color: #94a3b8;
@@ -1747,6 +2321,7 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
 @media (max-width: 1024px) {
   .carouselCardSlide {
     flex: 0 0 calc(50% - 12px);
+    min-width: 260px;
   }
   .workflowGrid {
     grid-template-columns: 1fr;
@@ -1756,12 +2331,183 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
 @media (max-width: 768px) {
+  /* Landing Navbar on Mobile */
+  .landingNavInner {
+    padding: 12px 16px;
+  }
+  .navVersionPill {
+    display: none !important;
+  }
   .navLinksList {
-    display: none;
+    display: none !important;
   }
   .navStatusBadge {
-    display: none;
+    display: none !important;
+  }
+  .navGetStartedDesktop {
+    display: none !important;
+  }
+  .navSignInDesktop {
+    display: inline-flex !important;
+    font-size: 12.5px !important;
+    padding: 7px 13px !important;
+  }
+  .mobileNavToggleBtn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .mobileNavToggleBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #38bdf8;
+  }
+  .mobileNavDrawer {
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 18px 24px;
+    background: rgba(7, 9, 14, 0.98);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--glass-border);
+    animation: slideDownMenu 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes slideDownMenu {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .mobileNavLinksGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mobileNavLinkItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: transparent;
+    border: 0;
+    color: #cbd5e1;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .mobileNavLinkItem:hover, .mobileNavLinkItem:active {
+    background: rgba(59, 130, 246, 0.15);
+    color: #38bdf8;
+  }
+  .mobileNavIcon {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
+  }
+  .mobileNavDivider {
+    height: 1px;
+    background: var(--glass-border);
+    margin: 6px 0;
+  }
+  .mobileNavStatusRow {
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+  }
+  .navStatusBadgeMobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: #94a3b8;
+    background: rgba(16, 22, 32, 0.8);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+  }
+  .mobileNavActionsRow {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .mobileNavActionsRow button {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: 10px;
+  }
+
+  /* Hero Section */
+  .heroSection {
+    padding: 44px 16px 54px;
+  }
+  .heroPillBadge {
+    font-size: 11px;
+    padding: 4px 10px;
+    max-width: 100%;
+  }
+  .heroHeadline {
+    font-size: clamp(30px, 8.5vw, 44px);
+    margin-bottom: 16px;
+  }
+  .heroDescription {
+    font-size: 14.5px;
+    line-height: 1.55;
+    margin-bottom: 24px;
+    padding: 0 4px;
+  }
+  .heroCtasRow {
+    flex-direction: column;
+    width: 100%;
+    max-width: 340px;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .btnHeroLarge {
+    width: 100%;
+    height: 46px;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .heroInstallPill {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  /* Live Terminal Preview */
+  .heroTerminalWrap {
+    margin-top: 36px;
+    border-radius: 12px;
+  }
+  .terminalTopBar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .terminalToggleWrap {
+    width: 100%;
+    display: flex;
+  }
+  .terminalToggleBtn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 8px;
   }
   .terminalBodyGrid {
     grid-template-columns: 1fr;
@@ -1769,16 +2515,94 @@ pre { margin:0; padding:14px; color:#b9c7e6; font:500 10px/1.7 ui-monospace,SFMo
   .terminalCodePane {
     border-right: 0;
     border-bottom: 1px solid var(--glass-border);
+    padding: 16px 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .terminalResponsePane {
+    padding: 16px 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Carousel */
+  .carouselSection {
+    padding: 50px 16px 60px;
   }
   .carouselCardSlide {
-    flex: 0 0 100%;
+    flex: 0 0 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 22px 18px;
+  }
+  .cardCodeSnippet {
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 10.5px;
+  }
+  .sectionTitle {
+    font-size: clamp(24px, 6vw, 32px);
+  }
+  .sectionSubtitle {
+    font-size: 14px;
+  }
+
+  /* Workflow */
+  .workflowSection {
+    padding: 50px 16px;
+  }
+  .workflowStepItem {
+    padding: 16px 14px;
+    gap: 14px;
+    border-radius: 12px;
+  }
+  .codeViewerTabs {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .codeSnippetArea {
+    padding: 16px 14px;
+    font-size: 11px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Architecture & Footer */
+  .trustGridSection {
+    padding: 50px 16px 60px;
   }
   .trustGrid {
     grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .trustCard {
+    padding: 20px 16px;
+    border-radius: 12px;
+  }
+  .landingFooter {
+    padding: 40px 16px 28px;
   }
   .footerInner {
     flex-direction: column;
-    gap: 30px;
+    gap: 28px;
+    padding-bottom: 28px;
+  }
+  .footerBottomBar {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  /* Auth Modal & Reset Card on Mobile */
+  .authModalCard, .resetCard {
+    max-height: calc(100vh - 32px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 24px 18px 22px !important;
+    border-radius: 14px !important;
   }
 }
 
